@@ -8,6 +8,10 @@ int check_win_condition() {
 	int alive_players = 0, tasks_done = 1;
 	struct player *impostor;
 
+	/* If the game isn't running. */
+	if (state.stage != STAGE_PLAYING)
+		return -1;
+
 	for (int i = 0; i < NUM_PLAYERS; i++) {
 		struct player *player = &players[i];
 
@@ -22,13 +26,13 @@ int check_win_condition() {
 			impostor = player;
 
 		/* If the player is the impostor and not alive anymore. */
-		if (player->is_impostor && !alive(player)) {
+		if (player->is_impostor && !is_alive(player)) {
 			end_game(JSON_GAME_STATUS_CREW_WON);
 			return 1;
 		}
 
 		/* If the player is just a crewmate and not in the "waiting" stage, increment the alive player counter. */
-		if (!player->is_impostor && alive(player) && player->stage != PLAYER_STAGE_WAITING)
+		if (!player->is_impostor && is_alive(player) && player->stage != PLAYER_STAGE_WAITING)
 			alive_players++;
 
 		/* Check if all tasks are done yet. */
@@ -50,7 +54,7 @@ int check_win_condition() {
 
 	/* If only one player is left. */
 	if (alive_players == 1) {
-		end_game(JSON_GAME_STATUS_CREW_WON);
+		end_game(JSON_GAME_STATUS_IMPOSTOR_WON);
 		return 1;
 	}
 
@@ -68,7 +72,6 @@ int choose_impostor() {
 void start_game() {
 	/* Announce the game start. */
 	broadcast_json(-1, JSON_GAME_STATUS(JSON_GAME_STATUS_START));
-
 
 	/* Change the game stage. */
 	state.stage = STAGE_PLAYING;
@@ -103,6 +106,8 @@ void start_game() {
 }
 
 void end_game(enum json_game_status winner) {
+
+	printf("ok\n");
 	/* Announcing the game end. */
 	broadcast_json(-1, JSON_GAME_STATUS(winner));
 

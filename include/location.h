@@ -36,7 +36,9 @@ extern struct location locations[];
 
 struct location *get_location_by_name(char *name);
 
-void notify_movement(int pid, struct location *old_location, struct location *new_location);
+void notify_movement(int pid, struct location *old_location);
+
+void notify_bodies(int pid);
 
 int check_doors(struct location *current, struct location *new);
 

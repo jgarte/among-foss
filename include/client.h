@@ -51,9 +51,11 @@ struct player {
 
 int get_pid_by_fd(int fd);
 
-int alive(struct player *player);
+struct player *get_player_by_name(char *name);
 
-int kill(struct player *player, struct player *target);
+int is_alive(struct player *player);
+
+int kill_player(struct player *player, struct player *target);
 
 int welcome_client(int fd);
 

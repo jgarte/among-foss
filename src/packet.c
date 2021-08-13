@@ -7,8 +7,14 @@ int handle_packet(int pid, char *type, struct json_object *object) {
 	struct player *player = &players[pid];
 	int fd = player->fd;
 
+	/* To start the game */
+	if (strcmp("start_game", type) == 0) {
+
+		if (player->stage == PLAYER_STAGE_LOBBY)
+			start_game();
+
 	/* To get the current location */
-	if (strcmp("location", type) == 0) {
+	} else if (strcmp("location", type) == 0) {
 
 		if (player->stage == PLAYER_STAGE_MAIN) {
 			struct json_object *args = json_object_new_object(), *doors_array = json_object_new_array();
@@ -25,8 +31,7 @@ int handle_packet(int pid, char *type, struct json_object *object) {
 
 			send_json_data(fd, JSON_LOCATION(1, args));
 			return 1;
-		} else
-			send_json_data(fd, JSON_LOCATION(0, NULL));
+		}
 
 	/* To get a list of tasks */
 	} else if (strcmp("tasks", type) == 0) {
@@ -47,8 +52,7 @@ int handle_packet(int pid, char *type, struct json_object *object) {
 
 			send_json_data(fd, JSON_TASKS(1, task_list));
 			return 1;
-		} else
-			send_json_data(fd, JSON_TASKS(0, NULL));
+		}
 
 	/* To complete a task */
 	} else if (strcmp("do_task", type) == 0) {
@@ -85,43 +89,39 @@ int handle_packet(int pid, char *type, struct json_object *object) {
 	} else if (strcmp("set_location", type) == 0) {
 
 		if (player->stage == PLAYER_STAGE_MAIN) {
-			struct location *location = player->location;
+			struct json_object *location_object = get_argument(object, "name");
 
-			/* If the player is actually somewhere. */
-			if (location != NULL) {
-				struct json_object *location_object = get_argument(object, "name");
+			/* If a location was actually specified. */
+			if (location_object == NULL) {
+				send_json_data(fd, JSON_SET_LOCATION(JSON_SET_LOCATION_INVALID, NULL));
+				return 0;
+			}
 
-				/* If a location was actually specified. */
-				if (location_object == NULL) {
-					send_json_data(fd, JSON_SET_LOCATION(JSON_SET_LOCATION_INVALID, NULL));
-					return 0;
-				}
+			struct location *old_location = player->location;
+			struct location *new_location = get_location_by_name((char *) json_object_get_string(location_object));
 
-				struct location *old_location = player->location;
-				struct location *new_location = get_location_by_name((char *) json_object_get_string(location_object));
+			/* If the location name could be parsed. */
+			if (new_location == NULL) {
+				send_json_data(fd, JSON_SET_LOCATION(JSON_SET_LOCATION_INVALID, NULL));
+				return 0;
+			}
 
-				/* If the location name could be parsed. */
-				if (new_location == NULL) {
-					send_json_data(fd, JSON_SET_LOCATION(JSON_SET_LOCATION_INVALID, NULL));
-					return 0;
-				}
+			int can_move = check_doors(old_location, new_location);
 
-				int can_move = check_doors(old_location, new_location);
+			/* If the movement is not possible due to there not being a direct connection using doors. */
+			if (!can_move) {
+				send_json_data(fd, JSON_SET_LOCATION(JSON_SET_LOCATION_NOT_POSSIBLE, NULL));
+				return 0;
+			}
 
-				/* If the movement is not possible due to there not being a direct connection using doors. */
-				if (!can_move) {
-					send_json_data(fd, JSON_SET_LOCATION(JSON_SET_LOCATION_NOT_POSSIBLE, NULL));
-					return 0;
-				}
+			/* Change the player's position. */
+			int success = move_player(pid, new_location);
 
-				/* Change the player's position. */
-				int success = move_player(pid, new_location);
-
-				if (success) {
-					send_json_data(fd, JSON_SET_LOCATION(JSON_SET_LOCATION_SUCCESS, create_string_argument_pair("name", new_location->name)));
-					return 1;
-				} else
-					send_json_data(fd, JSON_SET_LOCATION(JSON_SET_LOCATION_ALREADY_CURRENT, NULL));
+			if (success) {
+				send_json_data(fd, JSON_SET_LOCATION(JSON_SET_LOCATION_SUCCESS, create_string_argument_pair("name", new_location->name)));
+				return 1;
+			} else {
+				send_json_data(fd, JSON_SET_LOCATION(JSON_SET_LOCATION_ALREADY_CURRENT, NULL));
 			}
 		}
 
@@ -129,7 +129,24 @@ int handle_packet(int pid, char *type, struct json_object *object) {
 	} else if (strcmp("kill", type) == 0) {
 
 		if (player->stage == PLAYER_STAGE_MAIN) {
-			/* TODO: Implement */
+			struct json_object *target_object = get_argument(object, "name");
+
+			/* If no player was specified, return. */
+			if (target_object == NULL) {
+				send_json_data(fd, JSON_KILL(JSON_KILL_INVALID_PLAYER, NULL));
+				return 0;
+			}
+
+			struct player *target = get_player_by_name((char *) json_object_get_string(target_object));
+
+			/* Kill the target. */
+			int status = kill_player(player, target);
+
+			send_json_data(fd, JSON_KILL(
+							status,
+							status == JSON_KILL_SUCCESS ? create_string_argument_pair("name", target->name) : NULL
+						)
+			);
 		}
 
 	}

@@ -1,9 +1,9 @@
 #pragma once
 
 /* General */
-#define VERSION        "testing"
-#define COMMAND_PREFIX "/"
-#define INPUT_MAX      200
+#define VERSION        "testing" /* Current version of the server */
+#define INPUT_MAX      200       /* Maximum amount of characters that will be read */
+#define KILL_COOLDOWN  5         /* Amount of movement the impostor needs to have the ability to kill again */
 
 
 /* JSON packets */
@@ -17,6 +17,7 @@
 #define JSON_NAME(STATUS) create_generic_response(STATUS, "name")
 
 enum json_name {
+	JSON_NAME_SUCCESS,
 	JSON_NAME_TOO_SHORT,
 	JSON_NAME_TOO_LONG,
 	JSON_NAME_INVALID,
@@ -29,15 +30,14 @@ enum json_name {
 #define JSON_PLAYER_STATUS(STATUS, PLAYER) create_response(STATUS, "player_status", create_string_argument_pair("player", PLAYER))
 
 enum json_player_status {
-	JSON_PLAYER_STATUS_LEAVE,
-	JSON_PLAYER_STATUS_JOIN,
-	JSON_PLAYER_STATUS_BODY, /* was killed by the impostor in the current room */
-	JSON_PLAYER_STATUS_VOTE  /* kicked by votes during the discussion */
+	JSON_PLAYER_STATUS_LEAVE,      /* left the game */
+	JSON_PLAYER_STATUS_JOIN,       /* joined the game */
+	JSON_PLAYER_STATUS_ROOM_LEAVE, /* left the room */
+	JSON_PLAYER_STATUS_ROOM_ENTER, /* entered the room */
+	JSON_PLAYER_STATUS_BODY,       /* gets sent when you enter a room with a body */
+	JSON_PLAYER_STATUS_KILL,       /* was killed by the impostor in the current room */
+	JSON_PLAYER_STATUS_VOTE        /* kicked by votes during the discussion */
 };
-
-
-/* name: "greeting" */
-#define JSON_GREETING create_generic_response(1, "greeting")
 
 
 /* name: "chat"
@@ -109,7 +109,7 @@ enum json_do_task {
 /* name: "kill"
  * status: 0 = success, 1 = not in room, 2 = cooldown, 3 = invalid target, 4 = not impstor
  * args: { "player": target name (string) } */
-#define JSON_KILL(STATUS, PLAYER) create_response(STATUS, "kill", create_string_argument_pair("player", PLAYER))
+#define JSON_KILL(STATUS, ARGS) create_response(STATUS, "kill", ARGS)
 
 enum json_kill {
 	JSON_KILL_SUCCESS,

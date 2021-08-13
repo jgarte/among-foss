@@ -3,14 +3,17 @@
 ## Response and Message Types
 
 * `info`: information
-* `greeting`: a hello from the server
 * `name`: responses and messages relating to user names
-* `message`: commands and chat messages
-* `join`: a player joined the server
+* `message`: chat messages
+* `player_status`: status of a player
 * `chat`: a message from another player
 * `tasks`: list of tasks
 
 ## Response and Message Type Arguments
+
+### `info`
+
+* `version`: server version
 
 ### `name`
 
@@ -36,8 +39,7 @@
 
 ### `tasks`
 
-* `tasks`: an array of task names
-->	* an array with a `name` (string), `location` (string) and `done` (boolean) object
+* `arguments` is an array, each object has a `name` (string), `location` (string) and `done` (boolean) object
 
 ### `set_location`
 
@@ -99,13 +101,6 @@ A client will then need to send a JSON object detailing the name it has chosen. 
 }
 ```
 
-Name setting status codes work as such:
-
-* `0`: Too short
-* `1`: Too long
-* `2`: Invalid
-* `3`: Taken
-
 All printable characters (validated using `isprint()`) are allowed.
 
 This will ask the server to set the client's name to `my_name`. In response, the server will send a JSON object like this:
@@ -113,17 +108,23 @@ This will ask the server to set the client's name to `my_name`. In response, the
 ```json
 {
 	"status": 1,
-	"type": "greeting"
+	"type": "name"
 }
 ```
 
-A server response with the `greeting` type means the name was chosen successfully. Otherwise it is an error.
+Name setting status codes work as such:
+
+* `0`: Success
+* `1`: Too short
+* `2`: Too long
+* `3`: Invalid
+* `4`: Taken
+
+A server response with the `name` type and status code of `0` means the name was chosen successfully. Otherwise it is an error.
 
 ## Game
 
-As soon as someone in the server enters starts the game and more than 2 players are connected, the game still start.
-
-Refer to the `command` section for more information about how to execute a command.
+As soon as someone in the server starts the game and more than 2 players are connected, the game still start.
 
 The players will get sent `game_status` with a status of `0` (Start) to indicate that the game is starting.
 
@@ -147,8 +148,11 @@ The status codes mean the following:
 
 * `0`: Leave
 * `1`: Join
-* `2`: Body (was killed by the impostor in the current room)
-* `3`: Vote (voted out by discussion)
+* `2`: Room Leave
+* `3`: Room Enter
+* `4`: Body (gets sent when you enter a room with a body)
+* `5`: Kill (was killed by the impostor in the current room)
+* `5`: Vote (voted out by discussion)
 
 ### Message
 
@@ -178,25 +182,6 @@ Other players in the server will get an object like this:
 }
 ```
 
-Commands are handled through a separate object.
-
-### Command
-
-A typical command JSON object would look like this:
-
-```json
-{
-	"type": "command",
-	"arguments": {
-		"command": "start",
-		"arguments": [
-			"foo",
-			"bar"
-		]
-	}
-}
-```
-
 ### Game Status
 
 Game status codes work as such:
@@ -210,7 +195,7 @@ A message of this type from the server may look like this:
 }
 ```
 
-* `0`: Start (sent when the `start` command is executed)
+* `0`: Start (sent when the game started)
 * `1`: In Progress (sent after `info` if a game is currently in progress)
 * `2`: Full (sent after `info` if the game is full)
 * `3`: Crew won (sent after the game finished and the crew won)
@@ -236,6 +221,18 @@ Player type status codes work as such:
 * `0`: Crewmate
 * `1`: Impostor
 * `2`: Ghost (only gets sent after being killed by the impostor)
+
+### Start Game
+
+If the current game state is not `lobby` or `discussion`, sending the `start_game` event as a client will start the game.
+
+A request from the client should look like this:
+
+```json
+{
+	"type": "start_game"
+}
+```
 
 ### Location
 
@@ -342,12 +339,10 @@ A successful response from the server may look like this:
 {
 	"status": 1,
 	"type": "tasks",
-	"arguments": {
-		"tasks": [
-			{ "name": "Fix wiring", "location": "MedBay", "done": true },
-			{ "name": "Swipe card", "location": "Admin", "done": false }
-		]
-	}
+	"arguments": [
+		{ "name": "Fix wiring", "location": "MedBay", "done": true },
+		{ "name": "Swipe card", "location": "Admin", "done": false }
+	]
 }
 ```
 

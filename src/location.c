@@ -59,11 +59,44 @@ struct location *get_location_by_name(char *name) {
 	return NULL;
 }
 
-void notify_movement(int pid, struct location *old_location, struct location *new_location) {
-	/* TODO: Implement */
+/* Notify all other players in the room about movement. */
+void notify_movement(int pid, struct location *old_location) {
+	struct player *player = &players[pid];
+
+	for (int i = 0; i < NUM_PLAYERS; i++) {
+		struct player *plr = &players[i];
+
+		if (plr == NULL || plr->fd == -1 || !is_alive(plr)
+				|| !is_alive(player) || player == plr)
+			continue;
+
+		/* If the player entered the room. */
+		if (plr->location == player->location)
+			send_json_data(plr->fd, JSON_PLAYER_STATUS(JSON_PLAYER_STATUS_ROOM_ENTER, player->name));
+		
+		/* If the player left the room. */
+		if (plr->location == old_location)
+			send_json_data(plr->fd, JSON_PLAYER_STATUS(JSON_PLAYER_STATUS_ROOM_LEAVE, player->name));
+	}
 }
 
-/* Check if it it possible  to go from current -> new using the doors. */
+/* Notify a player about bodies in the room. */
+void notify_bodies(int pid) {
+	struct player *player = &players[pid];
+
+	for (int i = 0; i < NUM_PLAYERS; i++) {
+		struct player *plr = &players[i];
+
+		if (plr == NULL || plr->fd == -1 || is_alive(plr)
+				|| plr->is_impostor || plr == player)
+			continue;
+
+		/* Notify the player. */
+		send_json_data(player->fd, JSON_PLAYER_STATUS(JSON_PLAYER_STATUS_BODY, plr->name));
+	}
+}
+
+/* Check if it it possible to go from current -> new using the doors. */
 int check_doors(struct location *current, struct location *new) {
 	struct location *door;
 
@@ -84,10 +117,14 @@ int move_player(int pid, struct location *new_location) {
 
 	if (new_location != old_location) {
 		player->location = new_location;
-		notify_movement(pid, old_location, new_location);
+		notify_movement(pid, old_location);
 
+		/* Decrease the player's cooldown. */
 		if (player->cooldown != 0)
 			--player->cooldown;
+
+		/* Notify about bodies. */
+		notify_bodies(pid);
 
 		return 1;
 	}
