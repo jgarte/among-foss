@@ -106,8 +106,6 @@ void start_game() {
 }
 
 void end_game(enum json_game_status winner) {
-
-	printf("ok\n");
 	/* Announcing the game end. */
 	broadcast_json(-1, JSON_GAME_STATUS(winner));
 
